@@ -1,9 +1,12 @@
 import uuid
+
 from django.db import models
 from django.db.models import Sum
 from django.conf import settings
 
-from products.models import Product 
+from django_countries.fields import CountryField
+
+from products.models import Product
 
 
 class Order(models.Model):
@@ -11,7 +14,7 @@ class Order(models.Model):
     full_name = models.CharField(max_length=50, null=False, blank=False)
     email = models.EmailField(max_length=254, null=False, blank=False)
     phone_number = models.CharField(max_length=20, null=False, blank=False)
-    country = models.CharField(max_length=40, null=False, blank=False)
+    country = CountryField(blank_label='Country *', null=False, blank=False)
     postcode = models.CharField(max_length=20, null=True, blank=True)
     town_or_city = models.CharField(max_length=40, null=False, blank=False)
     street_address1 = models.CharField(max_length=80, null=False, blank=False)
@@ -32,7 +35,7 @@ class Order(models.Model):
 
     def update_total(self):
         """
-        Updating garnd total each time a line ithem is added,
+        Update grand total each time a line item is added,
         accounting for delivery costs.
         """
         self.order_total = self.lineitems.aggregate(Sum('lineitem_total'))['lineitem_total__sum'] or 0
@@ -41,19 +44,19 @@ class Order(models.Model):
         else:
             self.delivery_cost = 0
         self.grand_total = self.order_total + self.delivery_cost
-        self.save()        
+        self.save()
 
     def save(self, *args, **kwargs):
         """
         Override the original save method to set the order number
-        if it hasn't been set already
+        if it hasn't been set already.
         """
         if not self.order_number:
             self.order_number = self._generate_order_number()
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return self.order_number        
+        return self.order_number
 
 
 class OrderLineItem(models.Model):
@@ -65,14 +68,11 @@ class OrderLineItem(models.Model):
 
     def save(self, *args, **kwargs):
         """
-        Override the original save method to set the order number
-        if it hasn't been set already
+        Override the original save method to set the lineitem total
+        and update the order total.
         """
         self.lineitem_total = self.product.price * self.quantity
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f'SKU {self.product.sku} on order {self.order.order_number}'    
-        
-           
-
+        return f'SKU {self.product.sku} on order {self.order.order_number}'
